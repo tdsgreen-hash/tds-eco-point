@@ -3,29 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบสแกนคูปอง (สำหรับร้านค้า)</title>
+  <title>ระบบสแกนตัดคูปอง (ร้านค้า)</title>
   <style>
     body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #333; color: white; }
     .container { background: white; color: black; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
-    #reader { width: 100%; margin-bottom: 20px; }
+    #reader { width: 100%; margin-bottom: 15px; }
     input[type="text"], input[type="number"] { width: 90%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center;}
-    .result-box { margin-top: 20px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
+    .result-box { margin-top: 15px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2 style="color: #ff9800;">ระบบสแกนตัดแต้ม (ร้านค้า)</h2>
-    
+    <h2 style="color: #ff9800;">สแกนตัดยอดคูปอง</h2>
     <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
-    <input type="number" id="deductAmount" placeholder="ระบุจำนวนแต้มที่จะหัก (เช่น 10, 20)" value="10" required>
+    <input type="number" id="deductBaht" placeholder="ระบุยอดเงินที่ต้องการหัก (เช่น 20, 30)" value="20" required>
     
     <div id="reader"></div>
-    <p id="statusText" style="font-size: 14px; color: #666;">ใส่ชื่อร้านและจำนวนแต้ม แล้วเล็งกล้องไปที่ QR ของลูกค้า</p>
+    <p id="statusText" style="font-size: 13px; color: #666;">ใส่ชื่อร้านและยอดเงิน แล้วสแกน QR ของลูกค้า</p>
     
     <div id="resultBox" class="result-box">
-       <h3 style="margin:0;">✅ ตัดแต้มสำเร็จ!</h3>
+       <h3 style="margin:0;">✅ หักยอดสำเร็จ!</h3>
        <p>ลูกค้า: <span id="resName"></span></p>
-       <p>หักไป: <b id="resDeduct" style="color: #d32f2f;"></b> แต้ม</p>
+       <p>หักเงิน: <b style="color: #d32f2f;"><span id="resAmount"></span> THB</b></p>
+       <p>ยอดคูปองคงเหลือ: <b style="color: #1565c0;"><span id="resRemaining"></span> THB</b></p>
        <p>Ref Code: <b id="resCode" style="font-size: 1.1em;"></b></p>
        <button onclick="location.reload()" style="padding: 10px; margin-top: 10px; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer;">สแกนคนต่อไป</button>
     </div>
@@ -33,26 +33,26 @@
 
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
-    // 🚨 ใส่ Web App URL ของคุณตรงนี้
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec
+"; 
     
     const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
 
     function onScanSuccess(decodedText, decodedResult) {
       const shop = document.getElementById("merchantName").value;
-      const amount = parseInt(document.getElementById("deductAmount").value);
+      const baht = parseInt(document.getElementById("deductBaht").value);
 
       if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนสแกนครับ!"); return; }
-      if (!amount || amount <= 0) { alert("กรุณาระบุจำนวนแต้มที่จะหักให้ถูกต้องครับ!"); return; }
+      if (!baht || baht <= 0) { alert("กรุณาระบุยอดเงินที่จะหักให้ถูกต้อง!"); return; }
 
       html5QrcodeScanner.clear();
-      document.getElementById("statusText".innerText = "กำลังประมวลผลการหักแต้ม...");
+      document.getElementById("statusText").innerText = "กำลังประมวลผลหักยอดคูปอง...";
 
       const requestData = {
         action: "redeem",
         merchantName: shop,
-        customerId: decodedText, // รหัส User ID จาก QR ของลูกค้า
-        deductAmount: amount     // จำนวนแต้มที่ร้านค้ากรอกเข้ามาสดๆ
+        customerId: decodedText,
+        deductBaht: baht
       };
 
       fetch(GAS_URL, {
@@ -66,7 +66,8 @@
            document.getElementById("statusText").style.display = "none";
            document.getElementById("resultBox").style.display = "block";
            document.getElementById("resName").innerText = result.customerName;
-           document.getElementById("resDeduct").innerText = amount;
+           document.getElementById("resAmount").innerText = baht;
+           document.getElementById("resRemaining").innerText = result.remainingCoupon;
            document.getElementById("resCode").innerText = result.refCode;
         } else {
            alert("เกิดข้อผิดพลาด: " + result.message);
