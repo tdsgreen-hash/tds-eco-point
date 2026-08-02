@@ -3,61 +3,89 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ประวัติการใช้สิทธิ์ของร้านค้า / Merchant History</title>
+  <title>สรุปยอดร้านค้า / Merchant Dashboard</title>
   <style>
     body { font-family: 'Kanit', sans-serif; padding: 15px; background-color: #f5f5f5; color: #333; margin: 0; }
-    .container { background: white; padding: 15px; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    input[type="text"] { width: 92%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
-    button { background: #ff9800; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+    .container { background: white; padding: 20px; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    input[type="text"] { width: 92%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
+    button { background: #ff9800; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
     
-    .summary-box { background: #e8f5e9; padding: 10px; border-radius: 8px; margin: 15px 0; text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    .summary-box-points { background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: center; border-left: 5px solid #1565c0; }
+    .summary-box-redeem { background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: center; border-left: 5px solid #2e7d32; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 13px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    th { background-color: #2e7d32; color: white; }
+    .th-points { background-color: #1976d2; color: white; }
+    .th-redeem { background-color: #2e7d32; color: white; }
     tr:nth-child(even) { background-color: #f9f9f9; }
+    h4 { margin: 0 0 5px 0; }
+    
+    /* กล่องสำหรับกราฟ Dashboard */
+    .chart-container { margin: 20px 0; padding: 10px; border-radius: 8px; border: 1px solid #ddd; background: #fff; }
   </style>
+  <!-- นำเข้าไลบรารีกราฟ Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
-    <h3 style="color: #2e7d32; margin-top: 0; text-align: center;">📊 ประวัติการรับแลกคูปอง</h3>
+    <h3 style="color: #333; margin-top: 0; text-align: center;">📊 Dashboard สรุปยอดร้านค้า</h3>
     
-    <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณเพื่อค้นหา..." required>
-    <button onclick="loadHistory()">1. โหลดประวัติการขาย / Load History</button>
+    <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
+    <button onclick="loadHistory()">โหลดข้อมูล / Load Data</button>
     
-    <div class="summary-box">
-      <p style="margin: 0; font-size: 14px; color: #2e7d32;">ยอดสะสมรวมทั้งหมด: <b id="totalAmount" style="font-size: 18px;">0</b> THB</p>
+    <!-- พื้นที่แสดงกราฟ Dashboard -->
+    <div class="chart-container" id="chartBox" style="display: none;">
+      <canvas id="myChart"></canvas>
     </div>
 
-    <div style="overflow-x: auto;">
+    <!-- ส่วนที่ 1: ประวัติคนมาสะสมแต้ม -->
+    <div class="summary-box-points">
+      <h4 style="color: #1565c0;">⭐️ ลูกค้ามาสะสมแต้ม</h4>
+      <p style="margin: 0; font-size: 14px;">จำนวนลูกค้า: <b id="totalCustomers" style="font-size: 18px; color:#d32f2f;">0</b> คน</p>
+      <p style="margin: 0; font-size: 14px;">แจกแต้มรวม: <b id="totalPointsGiven" style="font-size: 18px; color:#1565c0;">0</b> pts</p>
+    </div>
+    <div style="overflow-x: auto; max-height: 200px; overflow-y: auto;">
       <table>
         <thead>
-          <tr>
-            <th>เวลา</th>
-            <th>ลูกค้า</th>
-            <th>ยอดหัก (THB)</th>
-          </tr>
+          <tr><th class="th-points">เวลา</th><th class="th-points">ลูกค้า</th><th class="th-points">แต้ม</th></tr>
         </thead>
-        <tbody id="historyTableBody">
-          <tr><td colspan="3" style="color: #777;">กรุณากรอกชื่อร้านแล้วกดโหลดข้อมูล</td></tr>
+        <tbody id="pointsTableBody">
+          <tr><td colspan="3" style="color: #777;">กรุณากรอกชื่อร้านเพื่อโหลดข้อมูล</td></tr>
         </tbody>
       </table>
     </div>
+
+    <!-- ส่วนที่ 2: ประวัติคนมาแลกคูปอง -->
+    <div class="summary-box-redeem">
+      <h4 style="color: #2e7d32;">🛍️ ลูกค้ามาใช้คูปอง</h4>
+      <p style="margin: 0; font-size: 14px;">ยอดขายคูปองรวม: <b id="totalRedeemAmount" style="font-size: 18px; color:#2e7d32;">0</b> THB</p>
+    </div>
+    <div style="overflow-x: auto; max-height: 200px; overflow-y: auto;">
+      <table>
+        <thead>
+          <tr><th class="th-redeem">เวลา</th><th class="th-redeem">ลูกค้า</th><th class="th-redeem">ยอดหัก(THB)</th></tr>
+        </thead>
+        <tbody id="redeemTableBody">
+          <tr><td colspan="3" style="color: #777;">กรุณากรอกชื่อร้านเพื่อโหลดข้อมูล</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
   </div>
 
   <script>
+    // 🚨 ใส่ Web App URL ให้ถูกต้อง
     const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
+    let dashboardChart = null; // ตัวแปรเก็บกราฟ
 
     function loadHistory() {
       const shop = document.getElementById("merchantName").value;
       if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนครับ!"); return; }
 
-      const tbody = document.getElementById("historyTableBody");
-      tbody.innerHTML = `<tr><td colspan="3" style="color: #777;">กำลังโหลดข้อมูล...</td></tr>`;
+      document.getElementById("pointsTableBody").innerHTML = `<tr><td colspan="3">กำลังโหลด...</td></tr>`;
+      document.getElementById("redeemTableBody").innerHTML = `<tr><td colspan="3">กำลังโหลด...</td></tr>`;
 
-      const requestData = {
-        action: "history",
-        merchantName: shop
-      };
+      const requestData = { action: "history", merchantName: shop };
 
       fetch(GAS_URL, {
         method: 'POST',
@@ -67,33 +95,90 @@
       .then(res => res.json())
       .then(result => {
         if (result.status === "success") {
-           let list = result.data;
-           tbody.innerHTML = "";
-           let grandTotal = 0;
+           let pointList = result.pointData;
+           let redeemList = result.redeemData;
+           let totalPts = 0, totalRedeem = 0;
 
-           if (list.length === 0) {
-              tbody.innerHTML = `<tr><td colspan="3" style="color: #777;">ยังไม่มีประวัติการทำรายการ</td></tr>`;
-              document.getElementById("totalAmount").innerText = "0";
-              return;
+           // 1. จัดการตารางแจกแต้ม
+           let pTbody = document.getElementById("pointsTableBody");
+           pTbody.innerHTML = "";
+           if (pointList.length === 0) {
+              pTbody.innerHTML = `<tr><td colspan="3" style="color: #777;">ยังไม่มีคนมาสะสมแต้ม</td></tr>`;
+           } else {
+              pointList.forEach(item => {
+                totalPts += parseInt(item.points || 0);
+                let dateStr = new Date(item.date).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+                pTbody.innerHTML += `<tr><td>${dateStr}</td><td>${item.customer}</td><td style="color:#1565c0; font-weight:bold;">${item.points}</td></tr>`;
+              });
            }
+           document.getElementById("totalCustomers").innerText = pointList.length;
+           document.getElementById("totalPointsGiven").innerText = totalPts.toLocaleString();
 
-           list.forEach(item => {
-             grandTotal += parseFloat(item.amount || 0);
-             let row = `<tr>
-               <td>${item.date}</td>
-               <td>${item.customer}</td>
-               <td style="color: #d32f2f; font-weight: bold;">${item.amount}</td>
-             </tr>`;
-             tbody.innerHTML += row;
-           });
+           // 2. จัดการตารางหักคูปอง
+           let rTbody = document.getElementById("redeemTableBody");
+           rTbody.innerHTML = "";
+           if (redeemList.length === 0) {
+              rTbody.innerHTML = `<tr><td colspan="3" style="color: #777;">ยังไม่มีคนมาใช้คูปอง</td></tr>`;
+           } else {
+              redeemList.forEach(item => {
+                totalRedeem += parseFloat(item.amount || 0);
+                let dateStr = new Date(item.date).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+                rTbody.innerHTML += `<tr><td>${dateStr}</td><td>${item.customer}</td><td style="color:#2e7d32; font-weight:bold;">${item.amount}</td></tr>`;
+              });
+           }
+           document.getElementById("totalRedeemAmount").innerText = totalRedeem.toLocaleString();
 
-           document.getElementById("totalAmount").innerText = grandTotal.toLocaleString();
+           // 3. วาดกราฟ Dashboard
+           document.getElementById("chartBox").style.display = "block";
+           renderChart(pointList.length, redeemList.length);
+
         } else {
            alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
         }
       })
       .catch(err => {
          alert("เชื่อมต่อฐานข้อมูลล้มเหลว");
+      });
+    }
+
+    // ฟังก์ชันสำหรับสร้างและอัปเดตกราฟ
+    function renderChart(pointsCount, redeemCount) {
+      const ctx = document.getElementById('myChart').getContext('2d');
+      
+      // ลบกราฟเก่าออกก่อนถ้าวาดใหม่
+      if (dashboardChart) {
+          dashboardChart.destroy();
+      }
+
+      dashboardChart = new Chart(ctx, {
+          type: 'bar', // เปลี่ยนเป็น 'pie' หรือ 'doughnut' ได้ตามต้องการ
+          data: {
+              labels: ['จำนวนครั้งที่แจกแต้ม', 'จำนวนครั้งที่รับคูปอง'],
+              datasets: [{
+                  label: 'จำนวนการทำรายการ (ครั้ง)',
+                  data: [pointsCount, redeemCount],
+                  backgroundColor: [
+                      'rgba(21, 101, 192, 0.7)', // สีฟ้า
+                      'rgba(46, 125, 50, 0.7)'   // สีเขียว
+                  ],
+                  borderColor: [
+                      'rgba(21, 101, 192, 1)',
+                      'rgba(46, 125, 50, 1)'
+                  ],
+                  borderWidth: 1,
+                  borderRadius: 4
+              }]
+          },
+          options: {
+              responsive: true,
+              scales: {
+                  y: { beginAtZero: true, ticks: { precision: 0 } }
+              },
+              plugins: {
+                  legend: { display: false },
+                  title: { display: true, text: 'สถิติการใช้งานของร้านค้า' }
+              }
+          }
       });
     }
   </script>
