@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TDS Eco Point</title>
+  <title>TDS Eco Point & Coupon</title>
   <style>
     body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #f5f5f5; }
-    .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px; }
+    .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
     img#profile { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
-    h2 { color: #00b900; }
-    .loading { color: #666; font-style: italic; }
-    .success-text { color: #00b900; font-weight: bold; }
-    .info-text { color: #0056b3; font-weight: bold; }
+    h2 { color: #00b900; margin: 5px 0; }
+    .box { background: #e8f5e9; padding: 10px; border-radius: 8px; margin: 10px 0; }
+    button { background: #ff9800; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
@@ -20,91 +20,115 @@
   <div class="container">
     <img id="profile" src="https://via.placeholder.com/80" alt="Profile">
     <h3 id="name">Initializing...</h3>
-    <p id="statusMessage" class="loading">Please wait...</p>
-    <h2>Total Points: <span id="pointDisplay">-</span> pts</h2>
+    <p id="statusMessage" style="color: #666; font-style: italic;">Please wait...</p>
     
-    <hr style="border:0; border-top:1px solid #ddd; margin: 20px 0;">
-    
-    <!-- ส่วนแสดง QR Code สำหรับแลกของรางวัล -->
-    <div id="rewardSection" style="display:none;">
-       <p style="color: #ff9800; font-weight: bold;">แสดง QR นี้ให้ร้านค้าเพื่อแลกคูปอง 50 บาท</p>
-       <img id="myQrCode" src="" alt="My QR Code" style="width:150px; height:150px; border: 2px solid #ddd; padding: 5px; border-radius: 10px;">
+    <div class="box">
+      <p style="margin:0; font-weight: bold; color: #2e7d32;">แต้มสะสมรอแลก (Points)</p>
+      <h2><span id="pointDisplay">0</span> pts</h2>
+      <button id="convertBtn" onclick="convertPoints()" disabled>แลกเป็นคูปอง 50 บาท</button>
+    </div>
+
+    <div class="box" style="background: #e3f2fd;">
+      <p style="margin:0; font-weight: bold; color: #1565c0;">ยอดคูปองเงินสดคงเหลือ (Coupon)</p>
+      <h2><span id="couponDisplay">0</span> THB</h2>
+      <div id="qrBox" style="display:none; margin-top: 10px;">
+        <p style="font-size: 12px; color: #d32f2f; font-weight: bold;">แสดง QR นี้ให้ร้านค้าสแกนหักเงิน</p>
+        <img id="myQrCode" src="" alt="Coupon QR" style="width:140px; height:140px; border: 2px solid #ccc; border-radius: 8px; padding: 4px; background: white;">
+      </div>
     </div>
   </div>
 
   <script>
-    // 🚨 1. อย่าลืมนำ เว็บแอป URL จาก Google มาใส่ในเครื่องหมายคำพูดด้านล่างด้วยนะครับ
     const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
-    
-    // 2. LIFF ID
     const LIFF_ID = "2010933373-leG4HPtR"; 
+    let globalUserId = "";
 
     function startApp() {
-      document.getElementById("statusMessage").innerText = "1. Connecting to LINE...";
-      
       liff.init({ liffId: LIFF_ID })
         .then(() => {
           if (liff.isLoggedIn()) {
-             document.getElementById("statusMessage").innerText = "2. Fetching profile data...";
              liff.getProfile().then(profile => {
+               globalUserId = profile.userId;
                document.getElementById("name").innerText = profile.displayName;
                document.getElementById("profile").src = profile.pictureUrl || "https://via.placeholder.com/80";
 
-               document.getElementById("statusMessage").innerText = "3. Processing points...";
-
-               const urlParams = new URLSearchParams(window.location.search);
-               const shopName = urlParams.get('shop') || "Unknown Shop";
-               const pointsToSave = parseInt(urlParams.get('point') || 0);
-
-               const requestData = {
-                 userId: profile.userId,
-                 displayName: profile.displayName,
-                 shopName: shopName,
-                 points: pointsToSave
-               };
-
-               fetch(GAS_URL, {
-                 method: 'POST',
-                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                 body: JSON.stringify(requestData)
-               })
-               .then(response => response.json())
-               .then(result => {
-                 if (result.status === "success") {
-                   // แสดงข้อความภาษาอังกฤษ
-                   if (pointsToSave === 0 || shopName === "CheckPoint") {
-                       document.getElementById("statusMessage").innerHTML = "<span class='info-text'>Your Current Point Balance 📊</span>";
-                   } else {
-                       document.getElementById("statusMessage").innerHTML = "<span class='success-text'>Success! (+" + pointsToSave + " pts from " + shopName + ") ✅</span>";
-                   }
-                   document.getElementById("pointDisplay").innerText = result.totalPoint;
-                   // ถ้าแต้มเกิน 50 ให้แสดง QR Code
-if (result.totalPoint >= 50) {
-   document.getElementById("rewardSection").style.display = "block";
-   document.getElementById("myQrCode").src = "https://quickchart.io/qr?text=" + profile.userId + "&margin=1&size=150";
-}
-                 } else {
-                   document.getElementById("statusMessage").innerText = "System Error: " + result.message;
-                 }
-               })
-               .catch(error => {
-                 document.getElementById("statusMessage").innerText = "Database connection failed.";
-               });
-
-             }).catch(err => {
-               document.getElementById("statusMessage").innerText = "Failed to fetch profile data.";
+               fetchData("add", 0, "CheckPoint");
              });
           } else {
              liff.login();
           }
-        })
-        .catch((err) => {
-          document.getElementById("statusMessage").innerText = "LIFF initialization failed.";
         });
+    }
+
+    function fetchData(action, pts, shop) {
+      const requestData = {
+        action: action,
+        userId: globalUserId,
+        displayName: document.getElementById("name").innerText,
+        shopName: shop,
+        points: pts
+      };
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(requestData)
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.status === "success") {
+           updateUI(result.points, result.couponBalance);
+           document.getElementById("statusMessage").innerText = "Updated successfully ✅";
+        }
+      });
+    }
+
+    function convertPoints() {
+      if(!confirm("ยืนยันการใช้ 50 แต้ม เพื่อแลกคูปองมูลค่า 50 บาท?")) return;
+      
+      const requestData = { action: "convert", userId: globalUserId };
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(requestData)
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.status === "success") {
+           updateUI(result.points, result.couponBalance);
+           alert("แลกคูปองสำเร็จ! ยอดเงินเข้ากระเป๋าคูปองเรียบร้อย");
+        } else {
+           alert(result.message);
+        }
+      });
+    }
+
+    function updateUI(points, coupon) {
+      document.getElementById("pointDisplay").innerText = points;
+      document.getElementById("couponDisplay").innerText = coupon;
+
+      // จัดการปุ่มแลกแต้ม (ต้องมีแต้ม >= 50 ถึงกดได้)
+      const btn = document.getElementById("convertBtn");
+      if (points >= 50) {
+         btn.disabled = false;
+         btn.style.background = "#ff9800";
+      } else {
+         btn.disabled = true;
+         btn.style.background = "#ccc";
+      }
+
+      // จัดการการแสดง QR Code คูปอง (ถ้ามีเงินในกระเป๋าคูปอง > 0 ถึงจะโชว์)
+      const qrBox = document.getElementById("qrBox");
+      if (coupon > 0) {
+         qrBox.style.display = "block";
+         document.getElementById("myQrCode").src = "https://quickchart.io/qr?text=" + globalUserId + "&margin=1&size=140";
+      } else {
+         qrBox.style.display = "none";
+      }
     }
 
     startApp();
   </script>
-
 </body>
 </html>
