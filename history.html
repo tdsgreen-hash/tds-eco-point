@@ -7,9 +7,10 @@
   <style>
     body { font-family: 'Kanit', sans-serif; padding: 15px; background-color: #f5f5f5; color: #333; margin: 0; }
     .container { background: white; padding: 20px; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    input[type="text"] { width: 92%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
-    button { background: #ff9800; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+    input[type="text"], input[type="month"] { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center; box-sizing: border-box; font-family: 'Kanit', sans-serif;}
+    button { background: #ff9800; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 15px; }
     
+    .filter-box { background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ffe0b2; display: none; }
     .summary-box-points { background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: center; border-left: 5px solid #1565c0; }
     .summary-box-redeem { background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 10px 0; text-align: center; border-left: 5px solid #2e7d32; }
     
@@ -19,23 +20,19 @@
     .th-redeem { background-color: #2e7d32; color: white; }
     tr:nth-child(even) { background-color: #f9f9f9; }
     h4 { margin: 0 0 5px 0; }
-    
-    /* กล่องสำหรับกราฟ Dashboard */
-    .chart-container { margin: 20px 0; padding: 10px; border-radius: 8px; border: 1px solid #ddd; background: #fff; }
   </style>
-  <!-- นำเข้าไลบรารีกราฟ Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
-    <h3 style="color: #333; margin-top: 0; text-align: center;">📊 Dashboard สรุปยอดร้านค้า</h3>
+    <h3 style="color: #333; margin-top: 0; text-align: center;">📊 สรุปยอดร้านค้า</h3>
     
     <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
     <button onclick="loadHistory()">โหลดข้อมูล / Load Data</button>
     
-    <!-- พื้นที่แสดงกราฟ Dashboard -->
-    <div class="chart-container" id="chartBox" style="display: none;">
-      <canvas id="myChart"></canvas>
+    <!-- ส่วนตัวกรองรายเดือน -->
+    <div id="filterSection" class="filter-box">
+       <label style="font-size: 14px; color: #e65100; font-weight: bold; display: block; margin-bottom: 8px; text-align: center;">📅 กรองข้อมูลตามเดือน (ปล่อยว่างเพื่อดูทั้งหมด)</label>
+       <input type="month" id="monthFilter" onchange="applyFilter()" style="margin-bottom: 0;">
     </div>
 
     <!-- ส่วนที่ 1: ประวัติคนมาสะสมแต้ม -->
@@ -44,7 +41,7 @@
       <p style="margin: 0; font-size: 14px;">จำนวนลูกค้า: <b id="totalCustomers" style="font-size: 18px; color:#d32f2f;">0</b> คน</p>
       <p style="margin: 0; font-size: 14px;">แจกแต้มรวม: <b id="totalPointsGiven" style="font-size: 18px; color:#1565c0;">0</b> pts</p>
     </div>
-    <div style="overflow-x: auto; max-height: 200px; overflow-y: auto;">
+    <div style="overflow-x: auto; max-height: 250px; overflow-y: auto;">
       <table>
         <thead>
           <tr><th class="th-points">เวลา</th><th class="th-points">ลูกค้า</th><th class="th-points">แต้ม</th></tr>
@@ -60,7 +57,7 @@
       <h4 style="color: #2e7d32;">🛍️ ลูกค้ามาใช้คูปอง</h4>
       <p style="margin: 0; font-size: 14px;">ยอดขายคูปองรวม: <b id="totalRedeemAmount" style="font-size: 18px; color:#2e7d32;">0</b> THB</p>
     </div>
-    <div style="overflow-x: auto; max-height: 200px; overflow-y: auto;">
+    <div style="overflow-x: auto; max-height: 250px; overflow-y: auto;">
       <table>
         <thead>
           <tr><th class="th-redeem">เวลา</th><th class="th-redeem">ลูกค้า</th><th class="th-redeem">ยอดหัก(THB)</th></tr>
@@ -74,9 +71,12 @@
   </div>
 
   <script>
-    // 🚨 ใส่ Web App URL ให้ถูกต้อง
+    // 🚨 อย่าลืมตรวจสอบ Web App URL 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
-    let dashboardChart = null; // ตัวแปรเก็บกราฟ
+    
+    // ตัวแปรเก็บข้อมูลดิบทั้งหมดเพื่อใช้ตอน Filter
+    let allPointsData = [];
+    let allRedeemData = [];
 
     function loadHistory() {
       const shop = document.getElementById("merchantName").value;
@@ -84,6 +84,7 @@
 
       document.getElementById("pointsTableBody").innerHTML = `<tr><td colspan="3">กำลังโหลด...</td></tr>`;
       document.getElementById("redeemTableBody").innerHTML = `<tr><td colspan="3">กำลังโหลด...</td></tr>`;
+      document.getElementById("filterSection").style.display = "none";
 
       const requestData = { action: "history", merchantName: shop };
 
@@ -95,43 +96,15 @@
       .then(res => res.json())
       .then(result => {
         if (result.status === "success") {
-           let pointList = result.pointData;
-           let redeemList = result.redeemData;
-           let totalPts = 0, totalRedeem = 0;
-
-           // 1. จัดการตารางแจกแต้ม
-           let pTbody = document.getElementById("pointsTableBody");
-           pTbody.innerHTML = "";
-           if (pointList.length === 0) {
-              pTbody.innerHTML = `<tr><td colspan="3" style="color: #777;">ยังไม่มีคนมาสะสมแต้ม</td></tr>`;
-           } else {
-              pointList.forEach(item => {
-                totalPts += parseInt(item.points || 0);
-                let dateStr = new Date(item.date).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-                pTbody.innerHTML += `<tr><td>${dateStr}</td><td>${item.customer}</td><td style="color:#1565c0; font-weight:bold;">${item.points}</td></tr>`;
-              });
-           }
-           document.getElementById("totalCustomers").innerText = pointList.length;
-           document.getElementById("totalPointsGiven").innerText = totalPts.toLocaleString();
-
-           // 2. จัดการตารางหักคูปอง
-           let rTbody = document.getElementById("redeemTableBody");
-           rTbody.innerHTML = "";
-           if (redeemList.length === 0) {
-              rTbody.innerHTML = `<tr><td colspan="3" style="color: #777;">ยังไม่มีคนมาใช้คูปอง</td></tr>`;
-           } else {
-              redeemList.forEach(item => {
-                totalRedeem += parseFloat(item.amount || 0);
-                let dateStr = new Date(item.date).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-                rTbody.innerHTML += `<tr><td>${dateStr}</td><td>${item.customer}</td><td style="color:#2e7d32; font-weight:bold;">${item.amount}</td></tr>`;
-              });
-           }
-           document.getElementById("totalRedeemAmount").innerText = totalRedeem.toLocaleString();
-
-           // 3. วาดกราฟ Dashboard
-           document.getElementById("chartBox").style.display = "block";
-           renderChart(pointList.length, redeemList.length);
-
+           allPointsData = result.pointData;
+           allRedeemData = result.redeemData;
+           
+           // รีเซ็ตตัวกรองเดือนเป็นค่าว่าง และโชว์กล่องตัวกรอง
+           document.getElementById("monthFilter").value = "";
+           document.getElementById("filterSection").style.display = "block";
+           
+           // สั่งประมวลผลแสดงข้อมูลทั้งหมด
+           applyFilter();
         } else {
            alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
         }
@@ -141,45 +114,63 @@
       });
     }
 
-    // ฟังก์ชันสำหรับสร้างและอัปเดตกราฟ
-    function renderChart(pointsCount, redeemCount) {
-      const ctx = document.getElementById('myChart').getContext('2d');
-      
-      // ลบกราฟเก่าออกก่อนถ้าวาดใหม่
-      if (dashboardChart) {
-          dashboardChart.destroy();
-      }
+    function applyFilter() {
+       const monthVal = document.getElementById("monthFilter").value; // รูปแบบ "YYYY-MM"
+       
+       let filteredPoints = allPointsData;
+       let filteredRedeems = allRedeemData;
 
-      dashboardChart = new Chart(ctx, {
-          type: 'bar', // เปลี่ยนเป็น 'pie' หรือ 'doughnut' ได้ตามต้องการ
-          data: {
-              labels: ['จำนวนครั้งที่แจกแต้ม', 'จำนวนครั้งที่รับคูปอง'],
-              datasets: [{
-                  label: 'จำนวนการทำรายการ (ครั้ง)',
-                  data: [pointsCount, redeemCount],
-                  backgroundColor: [
-                      'rgba(21, 101, 192, 0.7)', // สีฟ้า
-                      'rgba(46, 125, 50, 0.7)'   // สีเขียว
-                  ],
-                  borderColor: [
-                      'rgba(21, 101, 192, 1)',
-                      'rgba(46, 125, 50, 1)'
-                  ],
-                  borderWidth: 1,
-                  borderRadius: 4
-              }]
-          },
-          options: {
-              responsive: true,
-              scales: {
-                  y: { beginAtZero: true, ticks: { precision: 0 } }
-              },
-              plugins: {
-                  legend: { display: false },
-                  title: { display: true, text: 'สถิติการใช้งานของร้านค้า' }
-              }
-          }
-      });
+       // ถ้ามีการเลือกเดือน ให้ทำการกรองข้อมูล
+       if (monthVal) {
+         const [year, month] = monthVal.split("-");
+         
+         filteredPoints = allPointsData.filter(item => {
+            let d = new Date(item.date);
+            return d.getFullYear() == parseInt(year) && (d.getMonth() + 1) == parseInt(month);
+         });
+
+         filteredRedeems = allRedeemData.filter(item => {
+            let d = new Date(item.date);
+            return d.getFullYear() == parseInt(year) && (d.getMonth() + 1) == parseInt(month);
+         });
+       }
+
+       renderTables(filteredPoints, filteredRedeems);
+    }
+
+    function renderTables(pointList, redeemList) {
+       // 1. จัดการแสดงผลตารางแจกแต้ม
+       let pTbody = document.getElementById("pointsTableBody");
+       pTbody.innerHTML = "";
+       let totalPts = 0;
+
+       if (pointList.length === 0) {
+          pTbody.innerHTML = `<tr><td colspan="3" style="color: #777;">ไม่มีข้อมูลในเดือนที่เลือก</td></tr>`;
+       } else {
+          pointList.forEach(item => {
+            totalPts += parseInt(item.points || 0);
+            let dateStr = new Date(item.date).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            pTbody.innerHTML += `<tr><td>${dateStr}</td><td>${item.customer}</td><td style="color:#1565c0; font-weight:bold;">${item.points}</td></tr>`;
+          });
+       }
+       document.getElementById("totalCustomers").innerText = pointList.length;
+       document.getElementById("totalPointsGiven").innerText = totalPts.toLocaleString();
+
+       // 2. จัดการแสดงผลตารางหักคูปอง
+       let rTbody = document.getElementById("redeemTableBody");
+       rTbody.innerHTML = "";
+       let totalRedeem = 0;
+
+       if (redeemList.length === 0) {
+          rTbody.innerHTML = `<tr><td colspan="3" style="color: #777;">ไม่มีข้อมูลในเดือนที่เลือก</td></tr>`;
+       } else {
+          redeemList.forEach(item => {
+            totalRedeem += parseFloat(item.amount || 0);
+            let dateStr = new Date(item.date).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+            rTbody.innerHTML += `<tr><td>${dateStr}</td><td>${item.customer}</td><td style="color:#2e7d32; font-weight:bold;">${item.amount}</td></tr>`;
+          });
+       }
+       document.getElementById("totalRedeemAmount").innerText = totalRedeem.toLocaleString();
     }
   </script>
 </body>
