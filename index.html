@@ -10,6 +10,8 @@
     img#profile { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
     h2 { color: #00b900; }
     .loading { color: #666; font-style: italic; }
+    .success-text { color: #00b900; font-weight: bold; }
+    .info-text { color: #0056b3; font-weight: bold; }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
@@ -17,35 +19,34 @@
 
   <div class="container">
     <img id="profile" src="https://via.placeholder.com/80" alt="Profile">
-    <h3 id="name">กำลังเริ่มระบบ...</h3>
-    <p id="statusMessage" class="loading">กรุณารอสักครู่...</p>
-    <h2>คะแนนสะสม: <span id="pointDisplay">-</span> แต้ม</h2>
+    <h3 id="name">Initializing...</h3>
+    <p id="statusMessage" class="loading">Please wait...</p>
+    <h2>Total Points: <span id="pointDisplay">-</span> pts</h2>
   </div>
 
   <script>
-    // 1. นำ เว็บแอป URL จาก Google มาใส่ในเครื่องหมายคำพูดด้านล่าง
+    // 🚨 1. อย่าลืมนำ เว็บแอป URL จาก Google มาใส่ในเครื่องหมายคำพูดด้านล่างด้วยนะครับ
     const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
     
-    // 2. LIFF ID ของคุณ
+    // 2. LIFF ID
     const LIFF_ID = "2010933373-leG4HPtR"; 
 
     function startApp() {
-      document.getElementById("statusMessage").innerText = "1. กำลังเชื่อมต่อ LINE...";
+      document.getElementById("statusMessage").innerText = "1. Connecting to LINE...";
       
       liff.init({ liffId: LIFF_ID })
         .then(() => {
           if (liff.isLoggedIn()) {
-             document.getElementById("statusMessage").innerText = "2. กำลังดึงข้อมูล...";
+             document.getElementById("statusMessage").innerText = "2. Fetching profile data...";
              liff.getProfile().then(profile => {
                document.getElementById("name").innerText = profile.displayName;
                document.getElementById("profile").src = profile.pictureUrl || "https://via.placeholder.com/80";
 
-               document.getElementById("statusMessage").innerText = "3. กำลังบันทึกแต้ม...";
+               document.getElementById("statusMessage").innerText = "3. Processing points...";
 
-               // ดึงข้อมูลร้านค้าจาก URL
                const urlParams = new URLSearchParams(window.location.search);
-               const shopName = urlParams.get('shop') || "ไม่ระบุร้าน";
-               const pointsToSave = urlParams.get('point') || 1;
+               const shopName = urlParams.get('shop') || "Unknown Shop";
+               const pointsToSave = parseInt(urlParams.get('point') || 0);
 
                const requestData = {
                  userId: profile.userId,
@@ -54,7 +55,6 @@
                  points: pointsToSave
                };
 
-               // ส่งข้อมูลไปที่ Google Sheets (ตั้งค่า header พิเศษเพื่อกันการบล็อกข้ามเว็บ)
                fetch(GAS_URL, {
                  method: 'POST',
                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -63,25 +63,30 @@
                .then(response => response.json())
                .then(result => {
                  if (result.status === "success") {
-                   document.getElementById("statusMessage").innerText = "บันทึกสำเร็จ! (+" + pointsToSave + " แต้ม จากร้าน " + shopName + ")";
+                   // แสดงข้อความภาษาอังกฤษ
+                   if (pointsToSave === 0 || shopName === "CheckPoint") {
+                       document.getElementById("statusMessage").innerHTML = "<span class='info-text'>Your Current Point Balance 📊</span>";
+                   } else {
+                       document.getElementById("statusMessage").innerHTML = "<span class='success-text'>Success! (+" + pointsToSave + " pts from " + shopName + ") ✅</span>";
+                   }
                    document.getElementById("pointDisplay").innerText = result.totalPoint;
                  } else {
-                   document.getElementById("statusMessage").innerText = "บันทึกไม่สำเร็จ: " + result.message;
+                   document.getElementById("statusMessage").innerText = "System Error: " + result.message;
                  }
                })
                .catch(error => {
-                 document.getElementById("statusMessage").innerText = "เชื่อมต่อฐานข้อมูลล้มเหลว";
+                 document.getElementById("statusMessage").innerText = "Database connection failed.";
                });
 
              }).catch(err => {
-               document.getElementById("statusMessage").innerText = "ดึงข้อมูลโปรไฟล์ไม่สำเร็จ";
+               document.getElementById("statusMessage").innerText = "Failed to fetch profile data.";
              });
           } else {
              liff.login();
           }
         })
         .catch((err) => {
-          document.getElementById("statusMessage").innerText = "เชื่อมต่อ LIFF ไม่สำเร็จ";
+          document.getElementById("statusMessage").innerText = "LIFF initialization failed.";
         });
     }
 
@@ -90,4 +95,3 @@
 
 </body>
 </html>
-  
