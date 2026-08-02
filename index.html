@@ -22,6 +22,14 @@
     <h3 id="name">Initializing...</h3>
     <p id="statusMessage" class="loading">Please wait...</p>
     <h2>Total Points: <span id="pointDisplay">-</span> pts</h2>
+    
+    <hr style="border:0; border-top:1px solid #ddd; margin: 20px 0;">
+    
+    <!-- ส่วนแสดง QR Code สำหรับแลกของรางวัล -->
+    <div id="rewardSection" style="display:none;">
+       <p style="color: #ff9800; font-weight: bold;">แสดง QR นี้ให้ร้านค้าเพื่อแลกคูปอง 50 บาท</p>
+       <img id="myQrCode" src="" alt="My QR Code" style="width:150px; height:150px; border: 2px solid #ddd; padding: 5px; border-radius: 10px;">
+    </div>
   </div>
 
   <script>
@@ -70,6 +78,11 @@
                        document.getElementById("statusMessage").innerHTML = "<span class='success-text'>Success! (+" + pointsToSave + " pts from " + shopName + ") ✅</span>";
                    }
                    document.getElementById("pointDisplay").innerText = result.totalPoint;
+                   // ถ้าแต้มเกิน 50 ให้แสดง QR Code
+if (result.totalPoint >= 50) {
+   document.getElementById("rewardSection").style.display = "block";
+   document.getElementById("myQrCode").src = "https://quickchart.io/qr?text=" + profile.userId + "&margin=1&size=150";
+}
                  } else {
                    document.getElementById("statusMessage").innerText = "System Error: " + result.message;
                  }
