@@ -6,12 +6,12 @@
   <title>TDS Eco Point & Coupon</title>
   <style>
     body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #f5f5f5; }
-    .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-    img#profile { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; object-fit: cover; border: 2px solid #ddd; }
+    .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+    img#profile { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
     h2 { color: #00b900; margin: 5px 0; }
-    .box { background: #e8f5e9; padding: 15px; border-radius: 10px; margin: 12px 0; }
-    button { background: #ff9800; color: white; border: none; padding: 12px 20px; font-size: 15px; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+    .box { background: #e8f5e9; padding: 10px; border-radius: 8px; margin: 10px 0; }
+    button { background: #ff9800; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
@@ -19,27 +19,21 @@
 
   <div class="container">
     <img id="profile" src="https://via.placeholder.com/80" alt="Profile">
-    <h3 id="name" style="margin: 5px 0;">Initializing...</h3>
-    <p id="statusMessage" style="color: #666; font-style: italic; font-size: 13px; margin-top: 0;">Please wait...</p>
+    <h3 id="name">Initializing...</h3>
+    <p id="statusMessage" style="color: #666; font-style: italic;">Please wait...</p>
     
-    <!-- กระเป๋าแต้มสะสม -->
     <div class="box">
-      <p style="margin:0; font-weight: bold; color: #2e7d32; font-size: 14px;">แต้มสะสมรอแลก <span style="font-size: 12px; font-weight: normal;">(Points)</span></p>
+      <p style="margin:0; font-weight: bold; color: #2e7d32;">แต้มสะสมรอแลก (Points)</p>
       <h2><span id="pointDisplay">0</span> pts</h2>
-      <button id="convertBtn" onclick="convertPoints()" disabled>แลกเป็นคูปอง 50 บาท / Redeem 50 THB</button>
+      <button id="convertBtn" onclick="convertPoints()" disabled>แลกเป็นคูปอง (Redeem) 50 THB</button>
     </div>
 
-    <!-- กระเป๋าคูปองเงินสด -->
     <div class="box" style="background: #e3f2fd;">
-      <p style="margin:0; font-weight: bold; color: #1565c0; font-size: 14px;">ยอดคูปองเงินสดคงเหลือ <span style="font-size: 12px; font-weight: normal;">(Coupon Balance)</span></p>
+      <p style="margin:0; font-weight: bold; color: #1565c0;">ยอดคูปองเงินสดคงเหลือ (Coupon Balance)</p>
       <h2><span id="couponDisplay">0</span> THB</h2>
-      
-      <div id="qrBox" style="display:none; margin-top: 12px;">
-        <p style="font-size: 12px; color: #d32f2f; font-weight: bold; margin-bottom: 5px;">
-          แสดง QR นี้ให้ร้านค้าสแกนหักเงิน<br>
-          <span style="font-weight: normal; font-size: 11px;">Show this QR to the merchant to redeem</span>
-        </p>
-        <img id="myQrCode" src="" alt="Coupon QR" style="width:150px; height:150px; border: 2px solid #ccc; border-radius: 8px; padding: 4px; background: white;">
+      <div id="qrBox" style="display:none; margin-top: 10px;">
+        <p style="font-size: 12px; color: #d32f2f; font-weight: bold;">แสดง QR นี้ให้ร้านค้าสแกนหักเงิน</p>
+        <img id="myQrCode" src="" alt="Coupon QR" style="width:140px; height:140px; border: 2px solid #ccc; border-radius: 8px; padding: 4px; background: white;">
       </div>
     </div>
   </div>
@@ -63,11 +57,6 @@
           } else {
              liff.login();
           }
-        })
-        .catch(err => {
-          globalUserId = "U_TEST_USER_123";
-          document.getElementById("name").innerText = "Test User (Desktop)";
-          fetchData("add", 0, "CheckPoint");
         });
     }
 
@@ -91,14 +80,11 @@
            updateUI(result.points, result.couponBalance);
            document.getElementById("statusMessage").innerText = "Updated successfully ✅";
         }
-      })
-      .catch(err => {
-        document.getElementById("statusMessage").innerText = "Connection error ❌";
       });
     }
 
     function convertPoints() {
-      if(!confirm("ยืนยันการใช้ 50 แต้ม เพื่อแลกคูปองมูลค่า 50 บาท?\nConfirm to exchange 50 points for a 50 THB coupon?")) return;
+      if(!confirm("ยืนยันการใช้ 50 แต้ม เพื่อแลกคูปองมูลค่า 50 บาท?")) return;
       
       const requestData = { action: "convert", userId: globalUserId };
 
@@ -111,7 +97,7 @@
       .then(result => {
         if (result.status === "success") {
            updateUI(result.points, result.couponBalance);
-           alert("แลกคูปองสำเร็จ! ยอดเงินเข้ากระเป๋าคูปองเรียบร้อย\nCoupon exchanged successfully!");
+           alert("แลกคูปองสำเร็จ! ยอดเงินเข้ากระเป๋าคูปองเรียบร้อย");
         } else {
            alert(result.message);
         }
@@ -122,6 +108,7 @@
       document.getElementById("pointDisplay").innerText = points;
       document.getElementById("couponDisplay").innerText = coupon;
 
+      // จัดการปุ่มแลกแต้ม (ต้องมีแต้ม >= 50 ถึงกดได้)
       const btn = document.getElementById("convertBtn");
       if (points >= 50) {
          btn.disabled = false;
@@ -131,10 +118,11 @@
          btn.style.background = "#ccc";
       }
 
+      // จัดการการแสดง QR Code คูปอง (ถ้ามีเงินในกระเป๋าคูปอง > 0 ถึงจะโชว์)
       const qrBox = document.getElementById("qrBox");
       if (coupon > 0) {
          qrBox.style.display = "block";
-         document.getElementById("myQrCode").src = "https://quickchart.io/qr?text=" + globalUserId + "&margin=1&size=150";
+         document.getElementById("myQrCode").src = "https://quickchart.io/qr?text=" + globalUserId + "&margin=1&size=140";
       } else {
          qrBox.style.display = "none";
       }
