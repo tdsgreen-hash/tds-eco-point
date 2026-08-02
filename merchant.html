@@ -7,10 +7,12 @@
   <style>
     body { font-family: 'Kanit', sans-serif; text-align: center; padding: 15px; background-color: #222; color: white; margin: 0; }
     .container { background: white; color: black; padding: 15px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; margin-bottom: 10px; }
-    /* ซ่อนปุ่มเลือกไฟล์ / เมนูส่วนเกินทิ้งบังคับให้ใช้กล้องอย่างเดียว */
-    #reader__dashboard_section_csr button, 
-    #reader__dashboard_section_swap_camera button,
+    #reader { width: 100%; min-height: 250px; border-radius: 8px; overflow: hidden; background: #000; margin-bottom: 10px; position: relative; }
+    
+    /* ซ่อนปุ่มเลือกไฟล์และเมนูส่วนเกินทั้งหมด บังคับใช้กล้องอย่างเดียว */
+    #reader__dashboard_section_csr, 
+    #reader__dashboard_section_swap_camera,
+    #html5-qrcode-anchor-scan-type-change,
     label[for="file"] { display: none !important; }
     
     input[type="text"], input[type="number"] { width: 92%; padding: 10px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
@@ -40,8 +42,7 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
     // 🚨 ใส่ Web App URL ของ Google Apps Script ตรงนี้
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec
-"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
 
     function onScanSuccess(decodedText, decodedResult) {
       const shop = document.getElementById("merchantName").value;
@@ -51,11 +52,7 @@
       if (!baht || baht <= 0) { alert("กรุณาระบุยอดเงินที่จะหักให้ถูกต้อง!"); return; }
 
       // ปิดกล้องทันทีที่สแกนเจอ
-      html5QrCode.stop().then(() => {
-        console.log("Camera stopped.");
-      }).catch(err => {
-        console.error("Failed to stop camera", err);
-      });
+      html5QrcodeScanner.clear().catch(error => { console.error(error); });
 
       document.getElementById("statusText").innerText = "กำลังประมวลผลหักยอดคูปอง...";
 
@@ -92,18 +89,19 @@
       });
     }
 
-    // ตั้งค่าเปิดกล้องหลังแบบอัตโนมัติ (Environment Camera)
-    const html5QrCode = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
-
-    html5QrCode.start(
-      { facingMode: "environment" }, // บังคับใช้กล้องหลัง
-      config,
-      onScanSuccess
-    ).catch(err => {
-      alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การเข้าถึงกล้อง");
-      console.error(err);
-    });
+    // ใช้ Html5QrcodeScanner แบบระบุให้เปิดกล้องหลังอัตโนมัติ
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", 
+      { 
+        fps: 10, 
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0,
+        rememberLastUsedCamera: true
+      }, 
+      /* verbose= */ false
+    );
+    
+    html5QrcodeScanner.render(onScanSuccess);
   </script>
 </body>
 </html>
