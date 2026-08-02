@@ -8,23 +8,26 @@
     body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #333; color: white; }
     .container { background: white; color: black; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
     #reader { width: 100%; margin-bottom: 20px; }
-    input[type="text"] { width: 90%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center;}
+    input[type="text"], input[type="number"] { width: 90%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center;}
     .result-box { margin-top: 20px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2 style="color: #ff9800;">สแกนเพื่อตัดคูปอง 50฿</h2>
-    <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณที่นี่..." required>
+    <h2 style="color: #ff9800;">ระบบสแกนตัดแต้ม (ร้านค้า)</h2>
+    
+    <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
+    <input type="number" id="deductAmount" placeholder="ระบุจำนวนแต้มที่จะหัก (เช่น 10, 20)" value="10" required>
     
     <div id="reader"></div>
-    <p id="statusText">กรุณาเล็งกล้องไปที่หน้าจอของลูกค้า</p>
+    <p id="statusText" style="font-size: 14px; color: #666;">ใส่ชื่อร้านและจำนวนแต้ม แล้วเล็งกล้องไปที่ QR ของลูกค้า</p>
     
     <div id="resultBox" class="result-box">
-       <h3 style="margin:0;">✅ สำเร็จ!</h3>
+       <h3 style="margin:0;">✅ ตัดแต้มสำเร็จ!</h3>
        <p>ลูกค้า: <span id="resName"></span></p>
-       <p>Ref Code: <b id="resCode" style="font-size: 1.2em;"></b></p>
-       <button onclick="location.reload()" style="padding: 10px; margin-top: 10px; background: #333; color: white; border: none; border-radius: 5px;">สแกนคนต่อไป</button>
+       <p>หักไป: <b id="resDeduct" style="color: #d32f2f;"></b> แต้ม</p>
+       <p>Ref Code: <b id="resCode" style="font-size: 1.1em;"></b></p>
+       <button onclick="location.reload()" style="padding: 10px; margin-top: 10px; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer;">สแกนคนต่อไป</button>
     </div>
   </div>
 
@@ -37,16 +40,19 @@
 
     function onScanSuccess(decodedText, decodedResult) {
       const shop = document.getElementById("merchantName").value;
+      const amount = parseInt(document.getElementById("deductAmount").value);
+
       if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนสแกนครับ!"); return; }
+      if (!amount || amount <= 0) { alert("กรุณาระบุจำนวนแต้มที่จะหักให้ถูกต้องครับ!"); return; }
 
       html5QrcodeScanner.clear();
-      document.getElementById("statusText").innerText = "กำลังประมวลผลการหักแต้ม...";
+      document.getElementById("statusText".innerText = "กำลังประมวลผลการหักแต้ม...");
 
       const requestData = {
         action: "redeem",
         merchantName: shop,
-        customerId: decodedText, // รหัสที่ซ่อนอยู่ในคิวอาร์โค้ด
-        deductAmount: 50 // หัก 50 แต้มคงที่
+        customerId: decodedText, // รหัส User ID จาก QR ของลูกค้า
+        deductAmount: amount     // จำนวนแต้มที่ร้านค้ากรอกเข้ามาสดๆ
       };
 
       fetch(GAS_URL, {
@@ -60,13 +66,17 @@
            document.getElementById("statusText").style.display = "none";
            document.getElementById("resultBox").style.display = "block";
            document.getElementById("resName").innerText = result.customerName;
+           document.getElementById("resDeduct").innerText = amount;
            document.getElementById("resCode").innerText = result.refCode;
         } else {
            alert("เกิดข้อผิดพลาด: " + result.message);
            location.reload();
         }
       })
-      .catch(error => alert("เชื่อมต่อฐานข้อมูลล้มเหลว"));
+      .catch(error => {
+        alert("เชื่อมต่อฐานข้อมูลล้มเหลว");
+        location.reload();
+      });
     }
 
     html5QrcodeScanner.render(onScanSuccess);
