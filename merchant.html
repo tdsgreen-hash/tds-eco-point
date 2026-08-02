@@ -5,18 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบสแกนตัดยอดคูปอง (ร้านค้า)</title>
   <style>
-    body { font-family: 'Kanit', sans-serif; text-align: center; padding: 15px; background-color: #222; color: white; margin: 0; }
+    body { font-family: 'Kanit', sans-serif; text-align: center; padding: 10px; background-color: #222; color: white; margin: 0; }
     .container { background: white; color: black; padding: 15px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
     
-    /* ตกแต่งกรอบกล้องสแกนให้ชัดเจน */
-    #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; margin-bottom: 10px; border: 2px solid #ff9800; }
-    #reader video { width: 100% !important; border-radius: 8px; object-fit: cover; }
-    
-    /* ซ่อนปุ่มเลือกไฟล์และเมนูที่ไม่จำเป็นออกให้หมด */
-    #reader__dashboard_section_csr, 
-    #reader__dashboard_section_swap_camera,
-    #html5-qrcode-anchor-scan-type-change,
-    label[for="file"] { display: none !important; }
+    /* กรอบแสดงกล้องสแกนสด */
+    #reader { width: 100%; min-height: 250px; border-radius: 8px; overflow: hidden; background: #000; margin-bottom: 10px; }
     
     input[type="text"], input[type="number"] { width: 92%; padding: 10px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
     .result-box { margin-top: 15px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
@@ -28,9 +21,9 @@
     <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
     <input type="number" id="deductBaht" placeholder="ระบุยอดเงินที่จะหัก (เช่น 20, 30)" value="20" required>
     
-    <!-- ช่องแสดงกล้องสแกนแบบเรียลไทม์ -->
+    <!-- พื้นที่รันกล้องสแกน -->
     <div id="reader"></div>
-    <p id="statusText" style="font-size: 13px; color: #555; margin: 5px 0;">เล็งกล้องไปที่ QR Code ของลูกค้า</p>
+    <p id="statusText" style="font-size: 13px; color: #555; margin: 5px 0;">กำลังเปิดกล้องหลัง...</p>
     
     <div id="resultBox" class="result-box">
        <h3 style="margin:0;">✅ หักยอดสำเร็จ!</h3>
@@ -45,8 +38,9 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
     // 🚨 ใส่ Web App URL ของ Google Apps Script ตรงนี้
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec
-"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
+
+    const html5QrCode = new Html5Qrcode("reader");
 
     function onScanSuccess(decodedText, decodedResult) {
       const shop = document.getElementById("merchantName").value;
@@ -55,10 +49,12 @@
       if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนสแกนครับ!"); return; }
       if (!baht || baht <= 0) { alert("กรุณาระบุยอดเงินที่จะหักให้ถูกต้อง!"); return; }
 
-      // หยุดกล้องทันทีที่อ่าน QR Code ได้
-      html5QrcodeScanner.clear().catch(error => { console.error(error); });
+      // ปิดกล้องทันทีที่อ่าน QR Code สำเร็จ
+      html5QrCode.stop().then(() => {
+        console.log("Camera stopped.");
+      }).catch(err => { console.error(err); });
 
-      document.getElementById("statusText").innerText = "กำลังประมวลผลหักยอดคูปอง...";
+      document.getElementById("statusTextinnerText = "กำลังประมวลผลหักยอดคูปอง...";
 
       const requestData = {
         action: "redeem",
@@ -93,19 +89,34 @@
       });
     }
 
-    // ตั้งค่าตัวสแกนกล้องหลังแบบอัตโนมัติ
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader", 
-      { 
-        fps: 15, 
-        qrbox: { width: 220, height: 220 },
-        aspectRatio: 1.0,
-        rememberLastUsedCamera: true
-      }, 
-      false
-    );
-    
-    html5QrcodeScanner.render(onScanSuccess);
+    // สั่งเปิดกล้องหลังอัตโนมัติทันทีที่เข้าหน้าเว็บ
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        // พยายามหากล้องหลัง (Environment camera)
+        let backCameraId = devices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear') || device.label.toLowerCase().includes('หลัง'))?.id || devices[devices.length - 1].id;
+
+        html5QrCode.start(
+          backCameraId, 
+          { fps: 15, qrbox: { width: 220, height: 220 } },
+          onScanSuccess
+        ).then(() => {
+          document.getElementById("statusText").innerText = "เล็งกล้องไปที่ QR Code ของลูกค้า";
+        }).catch(err => {
+          document.getElementById("statusText").innerText = "ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตสิทธิ์การใช้กล้อง";
+        });
+      }
+    }).catch(err => {
+      // กรณีหาชื่อกล้องไม่เจอ ให้บังคับเปิดผ่าน facingMode
+      html5QrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 15, qrbox: { width: 220, height: 220 } },
+        onScanSuccess
+      ).then(() => {
+        document.getElementById("statusText").innerText = "เล็งกล้องไปที่ QR Code ของลูกค้า";
+      }).catch(err => {
+        document.getElementById("statusText").innerText = "ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตสิทธิ์การใช้กล้อง";
+      });
+    });
   </script>
 </body>
 </html>
