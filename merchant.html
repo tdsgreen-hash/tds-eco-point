@@ -3,64 +3,82 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบสแกนตัดยอดคูปอง (ร้านค้า)</title>
+  <title>TDS Eco Point & Coupon</title>
   <style>
-    body { font-family: 'Kanit', sans-serif; text-align: center; padding: 10px; background-color: #222; color: white; margin: 0; }
-    .container { background: white; color: black; padding: 15px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    
-    /* กรอบแสดงกล้องสแกนสด */
-    #reader { width: 100%; min-height: 250px; border-radius: 8px; overflow: hidden; background: #000; margin-bottom: 10px; }
-    
-    input[type="text"], input[type="number"] { width: 92%; padding: 10px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
-    .result-box { margin-top: 15px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
+    body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #f5f5f5; }
+    .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+    img#profile { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; object-fit: cover; border: 2px solid #ddd; }
+    h2 { color: #00b900; margin: 5px 0; }
+    .box { background: #e8f5e9; padding: 15px; border-radius: 10px; margin: 12px 0; }
+    button { background: #ff9800; color: white; border: none; padding: 12px 20px; font-size: 15px; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
   </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
+
   <div class="container">
-    <h3 style="color: #ff9800; margin: 5px 0 10px 0;">สแกนตัดยอดคูปอง</h3>
-    <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
-    <input type="number" id="deductBaht" placeholder="ระบุยอดเงินที่จะหัก (เช่น 20, 30)" value="20" required>
+    <img id="profile" src="https://via.placeholder.com/80" alt="Profile">
+    <h3 id="name" style="margin: 5px 0;">Initializing...</h3>
+    <p id="statusMessage" style="color: #666; font-style: italic; font-size: 13px; margin-top: 0;">Please wait...</p>
     
-    <!-- พื้นที่รันกล้องสแกน -->
-    <div id="reader"></div>
-    <p id="statusText" style="font-size: 13px; color: #555; margin: 5px 0;">กำลังเปิดกล้องหลัง...</p>
-    
-    <div id="resultBox" class="result-box">
-       <h3 style="margin:0;">✅ หักยอดสำเร็จ!</h3>
-       <p>ลูกค้า: <span id="resName"></span></p>
-       <p>หักเงิน: <b style="color: #d32f2f;"><span id="resAmount"></span> THB</b></p>
-       <p>ยอดคูปองคงเหลือ: <b style="color: #1565c0;"><span id="resRemaining"></span> THB</b></p>
-       <p>Ref Code: <b id="resCode" style="font-size: 1.1em;"></b></p>
-       <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 10px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;">สแกนคนต่อไป</button>
+    <!-- กระเป๋าแต้มสะสม -->
+    <div class="box">
+      <p style="margin:0; font-weight: bold; color: #2e7d32; font-size: 14px;">แต้มสะสมรอแลก <span style="font-size: 12px; font-weight: normal;">(Points)</span></p>
+      <h2><span id="pointDisplay">0</span> pts</h2>
+      <button id="convertBtn" onclick="convertPoints()" disabled>แลกเป็นคูปอง 50 บาท / Redeem 50 THB</button>
+    </div>
+
+    <!-- กระเป๋าคูปองเงินสด -->
+    <div class="box" style="background: #e3f2fd;">
+      <p style="margin:0; font-weight: bold; color: #1565c0; font-size: 14px;">ยอดคูปองเงินสดคงเหลือ <span style="font-size: 12px; font-weight: normal;">(Coupon Balance)</span></p>
+      <h2><span id="couponDisplay">0</span> THB</h2>
+      
+      <div id="qrBox" style="display:none; margin-top: 12px;">
+        <p style="font-size: 12px; color: #d32f2f; font-weight: bold; margin-bottom: 5px;">
+          แสดง QR นี้ให้ร้านค้าสแกนหักเงิน<br>
+          <span style="font-weight: normal; font-size: 11px;">Show this QR to the merchant to redeem</span>
+        </p>
+        <img id="myQrCode" src="" alt="Coupon QR" style="width:150px; height:150px; border: 2px solid #ccc; border-radius: 8px; padding: 4px; background: white;">
+      </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
-    // 🚨 ใส่ Web App URL ของ Google Apps Script ตรงนี้
+    // 🚨 ตั้งค่า Web App URL และ LIFF ID ที่ถูกต้อง
     const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
+    const LIFF_ID = "2010933373-leG4HPtR"; 
+    let globalUserId = "";
 
-    const html5QrCode = new Html5Qrcode("reader");
+    function startApp() {
+      liff.init({ liffId: LIFF_ID })
+        .then(() => {
+          if (liff.isLoggedIn()) {
+             liff.getProfile().then(profile => {
+               globalUserId = profile.userId;
+               document.getElementById("name").innerText = profile.displayName;
+               document.getElementById("profile").src = profile.pictureUrl || "https://via.placeholder.com/80";
 
-    function onScanSuccess(decodedText, decodedResult) {
-      const shop = document.getElementById("merchantName").value;
-      const baht = parseInt(document.getElementById("deductBaht").value);
+               fetchData("add", 0, "CheckPoint");
+             });
+          } else {
+             liff.login();
+          }
+        })
+        .catch(err => {
+          globalUserId = "U_TEST_USER_123";
+          document.getElementById("name").innerText = "Test User (Desktop)";
+          fetchData("add", 0, "CheckPoint");
+        });
+    }
 
-      if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนสแกนครับ!"); return; }
-      if (!baht || baht <= 0) { alert("กรุณาระบุยอดเงินที่จะหักให้ถูกต้อง!"); return; }
-
-      // ปิดกล้องทันทีที่อ่าน QR Code สำเร็จ
-      html5QrCode.stop().then(() => {
-        console.log("Camera stopped.");
-      }).catch(err => { console.error(err); });
-
-      document.getElementById("statusTextinnerText = "กำลังประมวลผลหักยอดคูปอง...";
-
+    function fetchData(action, pts, shop) {
       const requestData = {
-        action: "redeem",
-        merchantName: shop,
-        customerId: decodedText,
-        deductBaht: baht
+        action: action,
+        userId: globalUserId,
+        displayName: document.getElementById("name").innerText,
+        shopName: shop,
+        points: pts
       };
 
       fetch(GAS_URL, {
@@ -68,55 +86,62 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(requestData)
       })
-      .then(response => response.json())
+      .then(res => res.json())
       .then(result => {
-        if(result.status === "success") {
-           document.getElementById("statusText").style.display = "none";
-           document.getElementById("reader").style.display = "none";
-           document.getElementById("resultBox").style.display = "block";
-           document.getElementById("resName").innerText = result.customerName;
-           document.getElementById("resAmount").innerText = baht;
-           document.getElementById("resRemaining").innerText = result.remainingCoupon;
-           document.getElementById("resCode").innerText = result.refCode;
-        } else {
-           alert("เกิดข้อผิดพลาด: " + result.message);
-           location.reload();
+        if (result.status === "success") {
+           updateUI(result.points, result.couponBalance);
+           document.getElementById("statusMessage").innerText = "Updated successfully ✅";
         }
       })
-      .catch(error => {
-        alert("เชื่อมต่อฐานข้อมูลล้มเหลว");
-        location.reload();
+      .catch(err => {
+        document.getElementById("statusMessage").innerText = "Connection error ❌";
       });
     }
 
-    // สั่งเปิดกล้องหลังอัตโนมัติทันทีที่เข้าหน้าเว็บ
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        // พยายามหากล้องหลัง (Environment camera)
-        let backCameraId = devices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear') || device.label.toLowerCase().includes('หลัง'))?.id || devices[devices.length - 1].id;
+    function convertPoints() {
+      if(!confirm("ยืนยันการใช้ 50 แต้ม เพื่อแลกคูปองมูลค่า 50 บาท?\nConfirm to exchange 50 points for a 50 THB coupon?")) return;
+      
+      const requestData = { action: "convert", userId: globalUserId };
 
-        html5QrCode.start(
-          backCameraId, 
-          { fps: 15, qrbox: { width: 220, height: 220 } },
-          onScanSuccess
-        ).then(() => {
-          document.getElementById("statusText").innerText = "เล็งกล้องไปที่ QR Code ของลูกค้า";
-        }).catch(err => {
-          document.getElementById("statusText").innerText = "ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตสิทธิ์การใช้กล้อง";
-        });
-      }
-    }).catch(err => {
-      // กรณีหาชื่อกล้องไม่เจอ ให้บังคับเปิดผ่าน facingMode
-      html5QrCode.start(
-        { facingMode: "environment" }, 
-        { fps: 15, qrbox: { width: 220, height: 220 } },
-        onScanSuccess
-      ).then(() => {
-        document.getElementById("statusText").innerText = "เล็งกล้องไปที่ QR Code ของลูกค้า";
-      }).catch(err => {
-        document.getElementById("statusText").innerText = "ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตสิทธิ์การใช้กล้อง";
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(requestData)
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.status === "success") {
+           updateUI(result.points, result.couponBalance);
+           alert("แลกคูปองสำเร็จ! ยอดเงินเข้ากระเป๋าคูปองเรียบร้อย\nCoupon exchanged successfully!");
+        } else {
+           alert(result.message);
+        }
       });
-    });
+    }
+
+    function updateUI(points, coupon) {
+      document.getElementById("pointDisplay").innerText = points;
+      document.getElementById("couponDisplay").innerText = coupon;
+
+      const btn = document.getElementById("convertBtn");
+      if (points >= 50) {
+         btn.disabled = false;
+         btn.style.background = "#ff9800";
+      } else {
+         btn.disabled = true;
+         btn.style.background = "#ccc";
+      }
+
+      const qrBox = document.getElementById("qrBox");
+      if (coupon > 0) {
+         qrBox.style.display = "block";
+         document.getElementById("myQrCode").src = "https://quickchart.io/qr?text=" + globalUserId + "&margin=1&size=150";
+      } else {
+         qrBox.style.display = "none";
+      }
+    }
+
+    startApp();
   </script>
 </body>
 </html>
