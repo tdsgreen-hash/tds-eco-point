@@ -5,21 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบสแกนตัดยอดคูปอง (ร้านค้า)</title>
   <style>
-    body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #333; color: white; }
-    .container { background: white; color: black; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    #reader { width: 100%; margin-bottom: 15px; }
-    input[type="text"], input[type="number"] { width: 90%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center;}
+    body { font-family: 'Kanit', sans-serif; text-align: center; padding: 15px; background-color: #222; color: white; margin: 0; }
+    .container { background: white; color: black; padding: 15px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; margin-bottom: 10px; }
+    /* ซ่อนปุ่มเลือกไฟล์ / เมนูส่วนเกินทิ้งบังคับให้ใช้กล้องอย่างเดียว */
+    #reader__dashboard_section_csr button, 
+    #reader__dashboard_section_swap_camera button,
+    label[for="file"] { display: none !important; }
+    
+    input[type="text"], input[type="number"] { width: 92%; padding: 10px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
     .result-box { margin-top: 15px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2 style="color: #ff9800; margin-top:0;">สแกนตัดยอดคูปอง</h2>
+    <h3 style="color: #ff9800; margin: 5px 0 10px 0;">สแกนตัดยอดคูปอง</h3>
     <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
     <input type="number" id="deductBaht" placeholder="ระบุยอดเงินที่จะหัก (เช่น 20, 30)" value="20" required>
     
+    <!-- ช่องแสดงกล้องสแกน -->
     <div id="reader"></div>
-    <p id="statusText" style="font-size: 13px; color: #666;">ใส่ชื่อร้านและยอดเงิน แล้วสแกน QR ของลูกค้า</p>
+    <p id="statusText" style="font-size: 13px; color: #555; margin: 5px 0;">เล็งกล้องไปที่ QR Code ของลูกค้า</p>
     
     <div id="resultBox" class="result-box">
        <h3 style="margin:0;">✅ หักยอดสำเร็จ!</h3>
@@ -27,14 +33,15 @@
        <p>หักเงิน: <b style="color: #d32f2f;"><span id="resAmount"></span> THB</b></p>
        <p>ยอดคูปองคงเหลือ: <b style="color: #1565c0;"><span id="resRemaining"></span> THB</b></p>
        <p>Ref Code: <b id="resCode" style="font-size: 1.1em;"></b></p>
-       <button onclick="location.reload()" style="padding: 10px; margin-top: 10px; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer;">สแกนคนต่อไป</button>
+       <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 10px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;">สแกนคนต่อไป</button>
     </div>
   </div>
 
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
     // 🚨 ใส่ Web App URL ของ Google Apps Script ตรงนี้
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec
+"; 
 
     function onScanSuccess(decodedText, decodedResult) {
       const shop = document.getElementById("merchantName").value;
@@ -43,9 +50,11 @@
       if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนสแกนครับ!"); return; }
       if (!baht || baht <= 0) { alert("กรุณาระบุยอดเงินที่จะหักให้ถูกต้อง!"); return; }
 
-      // หยุดกล้องชั่วคราวหลังสแกนเจอ
-      html5QrcodeScanner.clear().catch(error => {
-        console.error("Failed to clear html5QrcodeScanner. ", error);
+      // ปิดกล้องทันทีที่สแกนเจอ
+      html5QrCode.stop().then(() => {
+        console.log("Camera stopped.");
+      }).catch(err => {
+        console.error("Failed to stop camera", err);
       });
 
       document.getElementById("statusText").innerText = "กำลังประมวลผลหักยอดคูปอง...";
@@ -83,9 +92,18 @@
       });
     }
 
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-    html5QrcodeScanner.render(onScanSuccess);
+    // ตั้งค่าเปิดกล้องหลังแบบอัตโนมัติ (Environment Camera)
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+    html5QrCode.start(
+      { facingMode: "environment" }, // บังคับใช้กล้องหลัง
+      config,
+      onScanSuccess
+    ).catch(err => {
+      alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การเข้าถึงกล้อง");
+      console.error(err);
+    });
   </script>
 </body>
 </html>
