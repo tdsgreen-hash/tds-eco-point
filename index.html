@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TDS Eco Point</title>
+  <style>
+    body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #f5f5f5; }
+    .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px; }
+    img#profile { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
+    h2 { color: #00b900; }
+    .loading { color: #666; font-style: italic; }
+  </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <img id="profile" src="https://via.placeholder.com/80" alt="Profile">
+    <h3 id="name">กำลังเริ่มระบบ...</h3>
+    <p id="statusMessage" class="loading">กรุณารอสักครู่...</p>
+    <h2>คะแนนสะสม: <span id="pointDisplay">-</span> แต้ม</h2>
+  </div>
+
+  <script>
+    // 1. นำ เว็บแอป URL จาก Google มาใส่ในเครื่องหมายคำพูดด้านล่าง
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
+    
+    // 2. LIFF ID ของคุณ
+    const LIFF_ID = "2010933373-leG4HPtR"; 
+
+    function startApp() {
+      document.getElementById("statusMessage").innerText = "1. กำลังเชื่อมต่อ LINE...";
+      
+      liff.init({ liffId: LIFF_ID })
+        .then(() => {
+          if (liff.isLoggedIn()) {
+             document.getElementById("statusMessage").innerText = "2. กำลังดึงข้อมูล...";
+             liff.getProfile().then(profile => {
+               document.getElementById("name").innerText = profile.displayName;
+               document.getElementById("profile").src = profile.pictureUrl || "https://via.placeholder.com/80";
+
+               document.getElementById("statusMessage").innerText = "3. กำลังบันทึกแต้ม...";
+
+               // ดึงข้อมูลร้านค้าจาก URL
+               const urlParams = new URLSearchParams(window.location.search);
+               const shopName = urlParams.get('shop') || "ไม่ระบุร้าน";
+               const pointsToSave = urlParams.get('point') || 1;
+
+               const requestData = {
+                 userId: profile.userId,
+                 displayName: profile.displayName,
+                 shopName: shopName,
+                 points: pointsToSave
+               };
+
+               // ส่งข้อมูลไปที่ Google Sheets (ตั้งค่า header พิเศษเพื่อกันการบล็อกข้ามเว็บ)
+               fetch(GAS_URL, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                 body: JSON.stringify(requestData)
+               })
+               .then(response => response.json())
+               .then(result => {
+                 if (result.status === "success") {
+                   document.getElementById("statusMessage").innerText = "บันทึกสำเร็จ! (+" + pointsToSave + " แต้ม จากร้าน " + shopName + ")";
+                   document.getElementById("pointDisplay").innerText = result.totalPoint;
+                 } else {
+                   document.getElementById("statusMessage").innerText = "บันทึกไม่สำเร็จ: " + result.message;
+                 }
+               })
+               .catch(error => {
+                 document.getElementById("statusMessage").innerText = "เชื่อมต่อฐานข้อมูลล้มเหลว";
+               });
+
+             }).catch(err => {
+               document.getElementById("statusMessage").innerText = "ดึงข้อมูลโปรไฟล์ไม่สำเร็จ";
+             });
+          } else {
+             liff.login();
+          }
+        })
+        .catch((err) => {
+          document.getElementById("statusMessage").innerText = "เชื่อมต่อ LIFF ไม่สำเร็จ";
+        });
+    }
+
+    startApp();
+  </script>
+
+</body>
+</html>
