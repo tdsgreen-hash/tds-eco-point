@@ -6,32 +6,31 @@
   <title>ระบบสแกนตัดยอดคูปอง (ร้านค้า)</title>
   <style>
     body { font-family: 'Kanit', sans-serif; text-align: center; padding: 15px; background-color: #222; color: white; margin: 0; }
-    .container { background: white; color: black; padding: 20px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    input[type="text"], input[type="number"] { width: 92%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
+    .container { background: white; color: black; padding: 15px; border-radius: 12px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
     
-    /* ดีไซน์ปุ่มเปิดกล้องสแกนแบบพรีเมียม กดปุ๊บเด้งกล้องแท้ของมือถือทันที */
-    .scan-btn {
-      background: #ff9800; color: white; border: none; padding: 15px; width: 100%;
-      font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 5px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .scan-btn:active { background: #f57c00; }
+    /* ตกแต่งกรอบกล้องสแกนให้ชัดเจน */
+    #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; margin-bottom: 10px; border: 2px solid #ff9800; }
+    #reader video { width: 100% !important; border-radius: 8px; object-fit: cover; }
     
+    /* ซ่อนปุ่มเลือกไฟล์และเมนูที่ไม่จำเป็นออกให้หมด */
+    #reader__dashboard_section_csr, 
+    #reader__dashboard_section_swap_camera,
+    #html5-qrcode-anchor-scan-type-change,
+    label[for="file"] { display: none !important; }
+    
+    input[type="text"], input[type="number"] { width: 92%; padding: 10px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; text-align: center;}
     .result-box { margin-top: 15px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h3 style="color: #333; margin: 0 0 15px 0;">📸 สแกนตัดยอดคูปอง</h3>
-    
+    <h3 style="color: #ff9800; margin: 5px 0 10px 0;">สแกนตัดยอดคูปอง</h3>
     <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
     <input type="number" id="deductBaht" placeholder="ระบุยอดเงินที่จะหัก (เช่น 20, 30)" value="20" required>
     
-    <!-- ปุ่มกดเปิดกล้องมือถือเพื่อสแกน (ซ่อนตัว input file แท้ไว้ แล้วใช้ปุ่มกดสั่ง) -->
-    <input type="file" id="qr-input-file" accept="image/*" capture="environment" style="display:none;">
-    <button class="scan-btn" onclick="openCamera()">📷 กดเพื่อสแกน QR ลูกค้า</button>
-    
-    <p id="statusText" style="font-size: 13px; color: #666; margin-top: 10px;">แตะปุ่มเพื่อเปิดกล้องหลังสแกน</p>
+    <!-- ช่องแสดงกล้องสแกนแบบเรียลไทม์ -->
+    <div id="reader"></div>
+    <p id="statusText" style="font-size: 13px; color: #555; margin: 5px 0;">เล็งกล้องไปที่ QR Code ของลูกค้า</p>
     
     <div id="resultBox" class="result-box">
        <h3 style="margin:0;">✅ หักยอดสำเร็จ!</h3>
@@ -46,47 +45,25 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
     // 🚨 ใส่ Web App URL ของ Google Apps Script ตรงนี้
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec
+"; 
 
-    function openCamera() {
+    function onScanSuccess(decodedText, decodedResult) {
       const shop = document.getElementById("merchantName").value;
       const baht = parseInt(document.getElementById("deductBaht").value);
 
-      if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนกดสแกนครับ!"); return; }
+      if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนสแกนครับ!"); return; }
       if (!baht || baht <= 0) { alert("กรุณาระบุยอดเงินที่จะหักให้ถูกต้อง!"); return; }
 
-      // สั่งเปิดตัวเลือกไฟล์ระบบ (ซึ่งถูกบังคับให้เปิดกล้องหลังด้วย capture="environment")
-      document.getElementById('qr-input-file').click();
-    }
+      // หยุดกล้องทันทีที่อ่าน QR Code ได้
+      html5QrcodeScanner.clear().catch(error => { console.error(error); });
 
-    // เมื่อถ่ายภาพหรือสแกน QR Code เสร็จ ระบบจะอ่านค่าอัตโนมัติ
-    const html5QrCode = new Html5Qrcode("qr-input-file");
-    
-    document.getElementById('qr-input-file').addEventListener('change', e => {
-      if (e.target.files.length == 0) { return; }
-      const imageFile = e.target.files[0];
-      
-      document.getElementById("statusText").innerText = "กำลังประมวลผล QR Code...";
-
-      html5QrCode.scanFile(imageFile, true)
-      .then(decodedText => {
-          // สแกนสำเร็จ ส่งข้อมูลไปหลังบ้านทันที
-          sendDataToBackend(decodedText);
-      })
-      .catch(err => {
-          alert("ไม่พบ QR Code ในภาพ กรุณาลองใหม่อีกครั้ง");
-          document.getElementById("statusText").innerText = "แตะปุ่มเพื่อเปิดกล้องหลังสแกน";
-      });
-    });
-
-    function sendDataToBackend(customerId) {
-      const shop = document.getElementById("merchantName").value;
-      const baht = parseInt(document.getElementById("deductBaht").value);
+      document.getElementById("statusText").innerText = "กำลังประมวลผลหักยอดคูปอง...";
 
       const requestData = {
         action: "redeem",
         merchantName: shop,
-        customerId: customerId,
+        customerId: decodedText,
         deductBaht: baht
       };
 
@@ -99,7 +76,7 @@
       .then(result => {
         if(result.status === "success") {
            document.getElementById("statusText").style.display = "none";
-           document.querySelector(".scan-btn").style.display = "none";
+           document.getElementById("reader").style.display = "none";
            document.getElementById("resultBox").style.display = "block";
            document.getElementById("resName").innerText = result.customerName;
            document.getElementById("resAmount").innerText = baht;
@@ -115,6 +92,20 @@
         location.reload();
       });
     }
+
+    // ตั้งค่าตัวสแกนกล้องหลังแบบอัตโนมัติ
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", 
+      { 
+        fps: 15, 
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0,
+        rememberLastUsedCamera: true
+      }, 
+      false
+    );
+    
+    html5QrcodeScanner.render(onScanSuccess);
   </script>
 </body>
 </html>
