@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบสแกนตัดคูปอง (ร้านค้า)</title>
+  <title>ระบบสแกนตัดยอดคูปอง (ร้านค้า)</title>
   <style>
     body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; background-color: #333; color: white; }
-    .container { background: white; color: black; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+    .container { background: white; color: black; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     #reader { width: 100%; margin-bottom: 15px; }
     input[type="text"], input[type="number"] { width: 90%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center;}
     .result-box { margin-top: 15px; padding: 15px; border-radius: 10px; background-color: #e8f5e9; color: #2e7d32; display: none; }
@@ -14,9 +14,9 @@
 </head>
 <body>
   <div class="container">
-    <h2 style="color: #ff9800;">สแกนตัดยอดคูปอง</h2>
+    <h2 style="color: #ff9800; margin-top:0;">สแกนตัดยอดคูปอง</h2>
     <input type="text" id="merchantName" placeholder="พิมพ์ชื่อร้านค้าของคุณ..." required>
-    <input type="number" id="deductBaht" placeholder="ระบุยอดเงินที่ต้องการหัก (เช่น 20, 30)" value="20" required>
+    <input type="number" id="deductBaht" placeholder="ระบุยอดเงินที่จะหัก (เช่น 20, 30)" value="20" required>
     
     <div id="reader"></div>
     <p id="statusText" style="font-size: 13px; color: #666;">ใส่ชื่อร้านและยอดเงิน แล้วสแกน QR ของลูกค้า</p>
@@ -33,10 +33,8 @@
 
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec
-"; 
-    
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+    // 🚨 ใส่ Web App URL ของ Google Apps Script ตรงนี้
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
 
     function onScanSuccess(decodedText, decodedResult) {
       const shop = document.getElementById("merchantName").value;
@@ -45,7 +43,11 @@
       if (!shop) { alert("กรุณาพิมพ์ชื่อร้านค้าก่อนสแกนครับ!"); return; }
       if (!baht || baht <= 0) { alert("กรุณาระบุยอดเงินที่จะหักให้ถูกต้อง!"); return; }
 
-      html5QrcodeScanner.clear();
+      // หยุดกล้องชั่วคราวหลังสแกนเจอ
+      html5QrcodeScanner.clear().catch(error => {
+        console.error("Failed to clear html5QrcodeScanner. ", error);
+      });
+
       document.getElementById("statusText").innerText = "กำลังประมวลผลหักยอดคูปอง...";
 
       const requestData = {
@@ -64,6 +66,7 @@
       .then(result => {
         if(result.status === "success") {
            document.getElementById("statusText").style.display = "none";
+           document.getElementById("reader").style.display = "none";
            document.getElementById("resultBox").style.display = "block";
            document.getElementById("resName").innerText = result.customerName;
            document.getElementById("resAmount").innerText = baht;
@@ -80,6 +83,8 @@
       });
     }
 
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
     html5QrcodeScanner.render(onScanSuccess);
   </script>
 </body>
