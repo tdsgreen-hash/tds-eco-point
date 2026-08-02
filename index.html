@@ -45,9 +45,8 @@
   </div>
 
   <script>
-    // 🚨 ใส่ Web App URL ของ Google Apps Script ที่นี่
     const GAS_URL = "https://script.google.com/macros/s/AKfycbze86F9Xs1hnIY_KvdKCXXpqkPjUKireyliU8IxmAO-dhLBZq93RQGwlOtarseFlIYU/exec"; 
-    const LIFF_ID = "2010933373-leG4HPtR"; // ถ้ามีอยู่แล้วไม่ต้องแก้เพิ่มครับ
+    const LIFF_ID = "2010933373-leG4HPtR"; 
     let globalUserId = "";
 
     function startApp() {
@@ -66,7 +65,6 @@
           }
         })
         .catch(err => {
-          // กรณีรันเทสบนเบอร์คอมพิวเตอร์ทั่วไป (เผื่อไม่ได้เปิดผ่าน LIFF ตรงๆ)
           globalUserId = "U_TEST_USER_123";
           document.getElementById("name").innerText = "Test User (Desktop)";
           fetchData("add", 0, "CheckPoint");
@@ -91,7 +89,7 @@
       .then(result => {
         if (result.status === "success") {
            updateUI(result.points, result.couponBalance);
-           document.getElementById("statusMessageinnerText = "Updated successfully ✅";
+           document.getElementById("statusMessage").innerText = "Updated successfully ✅";
         }
       })
       .catch(err => {
@@ -124,7 +122,6 @@
       document.getElementById("pointDisplay").innerText = points;
       document.getElementById("couponDisplay").innerText = coupon;
 
-      // จัดการปุ่มแลกแต้ม (ต้องมีแต้ม >= 50 ถึงกดได้)
       const btn = document.getElementById("convertBtn");
       if (points >= 50) {
          btn.disabled = false;
@@ -134,7 +131,6 @@
          btn.style.background = "#ccc";
       }
 
-      // จัดการการแสดง QR Code คูปอง (ถ้ามีเงินในกระเป๋าคูปอง > 0 ถึงจะโชว์)
       const qrBox = document.getElementById("qrBox");
       if (coupon > 0) {
          qrBox.style.display = "block";
