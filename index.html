@@ -10,7 +10,7 @@
     img#profile { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
     h2 { color: #00b900; margin: 5px 0; }
     .box { background: #e8f5e9; padding: 10px; border-radius: 8px; margin: 10px 0; }
-    button { background: #ff9800; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+    button { background: #ff9800; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; margin-top: 10px; width: 100%; box-sizing: border-box; }
     button:disabled { background: #ccc; cursor: not-allowed; }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -53,7 +53,13 @@
                document.getElementById("name").innerText = profile.displayName;
                document.getElementById("profile").src = profile.pictureUrl || "https://via.placeholder.com/80";
 
-               fetchData("add", 0, "CheckPoint");
+               // 🚨 โค้ดส่วนที่เพิ่มมาเพื่ออ่านค่าจาก URL (QR Code)
+               const urlParams = new URLSearchParams(window.location.search);
+               const shopParam = urlParams.get('shop') || "CheckPoint"; // ถ้าไม่มีชื่อร้านให้เป็น CheckPoint
+               const pointParam = parseInt(urlParams.get('point')) || 0; // ถ้าไม่มีคะแนนให้เป็น 0
+
+               // ส่งค่าร้านและคะแนนไปบันทึก
+               fetchData("add", pointParam, shopParam);
              });
           } else {
              liff.login();
@@ -73,9 +79,15 @@
       .then(result => {
         if (result.status === "success") {
            updateUI(result.points, result.couponBalance, result.hasConverted);
-           document.getElementById("statusMessage").innerText = "Updated successfully ✅";
+           // เปลี่ยนข้อความแจ้งเตือนให้ตรงกับการใช้งาน
+           if (pts > 0) {
+               document.getElementById("statusMessage").innerText = `ได้รับ ${pts} แต้ม จาก ${shop} ✅`;
+           } else {
+               document.getElementById("statusMessage").innerText = "Updated successfully ✅";
+           }
         } else if (result.status === "error") {
            document.getElementById("statusMessage").innerText = result.message;
+           alert(result.message); // แจ้งเตือน Popup หากโควตาเต็ม
         }
       });
     }
