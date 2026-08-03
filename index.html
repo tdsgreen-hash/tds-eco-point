@@ -26,13 +26,14 @@
       <p style="margin:0; font-weight: bold; color: #2e7d32;">แต้มสะสมรอแลก (Points)</p>
       <h2><span id="pointDisplay">0</span> pts</h2>
       <button id="convertBtn" onclick="convertPoints()" disabled>แลกเป็นคูปอง (Redeem) 50 THB</button>
+      <p style="font-size: 11px; color: #d32f2f; margin-top: 5px;">*จำกัด 1 สิทธิ์/คน สิ้นสุดโครงการ 30 พ.ย. 69</p>
     </div>
 
     <div class="box" style="background: #e3f2fd;">
       <p style="margin:0; font-weight: bold; color: #1565c0;">ยอดคูปองเงินสดคงเหลือ (Coupon Balance)</p>
       <h2><span id="couponDisplay">0</span> THB</h2>
       <div id="qrBox" style="display:none; margin-top: 10px;">
-        <p style="font-size: 12px; color: #d32f2f; font-weight: bold;">แสดง QR นี้ให้ร้านค้าสแกนหักเงิน</p>
+        <p style="font-size: 12px; color: #d32f2f; font-weight: bold;">แสดง QR นี้ให้ร้านค้าสแกน (หักรวดเดียว 50 บาท)</p>
         <img id="myQrCode" src="" alt="Coupon QR" style="width:140px; height:140px; border: 2px solid #ccc; border-radius: 8px; padding: 4px; background: white;">
       </div>
     </div>
@@ -61,13 +62,7 @@
     }
 
     function fetchData(action, pts, shop) {
-      const requestData = {
-        action: action,
-        userId: globalUserId,
-        displayName: document.getElementById("name").innerText,
-        shopName: shop,
-        points: pts
-      };
+      const requestData = { action: action, userId: globalUserId, displayName: document.getElementById("name").innerText, shopName: shop, points: pts };
 
       fetch(GAS_URL, {
         method: 'POST',
@@ -77,14 +72,16 @@
       .then(res => res.json())
       .then(result => {
         if (result.status === "success") {
-           updateUI(result.points, result.couponBalance);
+           updateUI(result.points, result.couponBalance, result.hasConverted);
            document.getElementById("statusMessage").innerText = "Updated successfully ✅";
+        } else if (result.status === "error") {
+           document.getElementById("statusMessage").innerText = result.message;
         }
       });
     }
 
     function convertPoints() {
-      if(!confirm("ยืนยันการใช้ 50 แต้ม เพื่อแลกคูปองมูลค่า 50 บาท?")) return;
+      if(!confirm("ยืนยันการแลกคูปอง 50 บาท?\n(คุณสามารถแลกได้เพียง 1 ครั้งตลอดโครงการ)")) return;
       
       const requestData = { action: "convert", userId: globalUserId };
 
@@ -96,7 +93,7 @@
       .then(res => res.json())
       .then(result => {
         if (result.status === "success") {
-           updateUI(result.points, result.couponBalance);
+           updateUI(result.points, result.couponBalance, true);
            alert("แลกคูปองสำเร็จ! ยอดเงินเข้ากระเป๋าคูปองเรียบร้อย");
         } else {
            alert(result.message);
@@ -104,21 +101,26 @@
       });
     }
 
-    function updateUI(points, coupon) {
+    function updateUI(points, coupon, hasConverted = false) {
       document.getElementById("pointDisplay").innerText = points;
       document.getElementById("couponDisplay").innerText = coupon;
 
-      // จัดการปุ่มแลกแต้ม (ต้องมีแต้ม >= 50 ถึงกดได้)
       const btn = document.getElementById("convertBtn");
-      if (points >= 50) {
+      
+      if (hasConverted) {
+         btn.disabled = true;
+         btn.innerText = "ใช้งานสิทธิ์ครบแล้ว (Limit Reached)";
+         btn.style.background = "#ccc";
+      } else if (points >= 50) {
          btn.disabled = false;
+         btn.innerText = "แลกเป็นคูปอง (Redeem) 50 THB";
          btn.style.background = "#ff9800";
       } else {
          btn.disabled = true;
+         btn.innerText = "แลกเป็นคูปอง (Redeem) 50 THB";
          btn.style.background = "#ccc";
       }
 
-      // จัดการการแสดง QR Code คูปอง (ถ้ามีเงินในกระเป๋าคูปอง > 0 ถึงจะโชว์)
       const qrBox = document.getElementById("qrBox");
       if (coupon > 0) {
          qrBox.style.display = "block";
